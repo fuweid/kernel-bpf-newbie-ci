@@ -11,9 +11,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 cd ..
 
-readonly LLVM_VER=14
 readonly REPO_BASE="$(pwd -P)"
-
 source ${REPO_BASE}/helper.sh
 
 
