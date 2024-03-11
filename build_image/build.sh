@@ -28,7 +28,7 @@ readonly WORKSPACE="${REPO_BASE}/.workspace"
 readonly KERNEL_RELEASE="$(make -C "${KERNEL_REPO_ROOT}" -s kernelrelease)"
 readonly VMLINUZ_PATH="${KERNEL_REPO_ROOT}/$(make -C "$KERNEL_REPO_ROOT" -s image_name)"
 readonly PROJECT_NAME="libbpf"
-readonly IMAGE_SIZE=8G
+readonly IMAGE_SIZE=16G
 readonly IMAGE_NAME="${WORKSPACE}/root.img"
 
 source ${REPO_BASE}/helper.sh
@@ -42,7 +42,6 @@ rm -f "${IMAGE_NAME}"
 
 # Create a working directory and schedule its deletion.
 working_dir=$(mktemp -d -p "${WORKSPACE}")
-
 cleanup() {
   rm -rf "${working_dir}"
 	guestfish --remote exit 2>/dev/null || true
@@ -64,7 +63,9 @@ create_rootfs_img() {
 
 	set_nocow "${path}"
 	truncate -s "${IMAGE_SIZE}" "${path}"
-	mkfs.ext4 -q "${path}"
+	#mkfs.xfs -m bigtime=0,inobtcount=0,reflink=0 -i nrext64=0  -f "${path}"
+	mkfs.ext4 "${path}"
+  #tune2fs -O fast_commit "${path}"
 }
 
 tar_in() {
@@ -107,59 +108,45 @@ guestfish --remote \
 
 travis_fold end vmlinux_setup
 
-travis_fold start bpftool_checks "Running bpftool checks..."
+# travis_fold start bpftool_checks "Running bpftool checks..."
 
 # "&& true" does not change the return code (it is not executed if the
 # Python script fails), but it prevents the trap on ERR set at the top
 # of this file to trigger on failure.
-"${KERNEL_REPO_ROOT}/tools/testing/selftests/bpf/test_bpftool_synctypes.py" && true
-bpftool_exitstatus=$?
-if [[ "$bpftool_exitstatus" -eq 0 ]]; then
-	print_notice bpftool_checks "bpftool checks passed successfully."
-else
-	print_error bpftool_checks "bpftool checks returned ${bpftool_exitstatus}."
-fi
-bpftool_exitstatus="bpftool:${bpftool_exitstatus}"
+#"${KERNEL_REPO_ROOT}/tools/testing/selftests/bpf/test_bpftool_synctypes.py" && true
+#bpftool_exitstatus=$?
+#if [[ "$bpftool_exitstatus" -eq 0 ]]; then
+#	print_notice bpftool_checks "bpftool checks passed successfully."
+#else
+#	print_error bpftool_checks "bpftool checks returned ${bpftool_exitstatus}."
+#fi
+#bpftool_exitstatus="bpftool:${bpftool_exitstatus}"
 
 travis_fold end bpftool_checks
 
 travis_fold start copy_files "Copying files..."
 
 # Copy the source files in.
-guestfish --remote \
-	mkdir-p "/${PROJECT_NAME}" : \
-	chmod 0755 "/${PROJECT_NAME}"
+#guestfish --remote \
+#	mkdir-p "/${PROJECT_NAME}" : \
+#	chmod 0755 "/${PROJECT_NAME}"
 
-guestfish --remote \
-	mkdir-p "/${PROJECT_NAME}/selftests" : \
-	chmod 0755 "/${PROJECT_NAME}/selftests" : \
-	mkdir-p "/${PROJECT_NAME}/ci" : \
-	chmod 0755 "/${PROJECT_NAME}/ci"
-tar -C "${WORKSPACE}/selftests" -c bpf | tar_in "/${PROJECT_NAME}/selftests"
-tar -C "${REPO_BASE}" -c vmtest  | tar_in "/${PROJECT_NAME}/ci"
+#guestfish --remote \
+#	mkdir-p "/${PROJECT_NAME}/selftests" : \
+#	chmod 0755 "/${PROJECT_NAME}/selftests" : \
+#	mkdir-p "/${PROJECT_NAME}/ci" : \
+#	chmod 0755 "/${PROJECT_NAME}/ci"
+#tar -C "${WORKSPACE}/selftests" -c bpf | tar_in "/${PROJECT_NAME}/selftests"
+#tar -C "${REPO_BASE}" -c vmtest  | tar_in "/${PROJECT_NAME}/ci"
 
 init_script_tmp=$(mktemp -p ${working_dir})
 cat <<HERE >"${init_script_tmp}"
 #!/bin/sh
 
-set -eu
+/test.sh
 
-echo 'Running setup commands'
-export KERNEL="${KERNEL_RELEASE}"
-export BPF_SELFTESTS_PATH="/${PROJECT_NAME}/selftests/bpf"
+echo fail > /exitstatus
 
-set +e
-/${PROJECT_NAME}/ci/vmtest/run_selftests.sh; exitstatus=\$?
-echo -e '$(travis_fold start collect_status "Collect status")'
-set -e
-
-# If setup command did not write its exit status to /exitstatus, do it now
-if [[ ! -s /exitstatus ]]; then
-	echo setup_cmd:\$exitstatus > /exitstatus
-fi
-
-chmod 644 /exitstatus
-echo -e '$(travis_fold end collect_status)'
 HERE
 
 guestfish --remote \
@@ -181,6 +168,14 @@ HERE
 guestfish --remote \
 	upload "${shutdown_script_tmp}" /etc/rcS.d/S99-poweroff : \
 	chmod 755 /etc/rcS.d/S99-poweroff
+
+guestfish --remote \
+  upload /home/fuwei/workspace/go-dmflakey/test.sh /test.sh : \
+  chmod 755 /test.sh
+
+guestfish --remote \
+  upload /home/fuwei/go/bin/bbolt /usr/bin/bbolt : \
+  chmod 755 /usr/bin/bbolt
 
 guestfish --remote exit
 

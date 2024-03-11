@@ -26,7 +26,7 @@ root=$(mktemp -d -p "$PWD")
 trap 'rm -r "$root"' EXIT
 
 # Install packages.
-packages=binutils,coreutils,busybox-static,elfutils,iproute2,libcap2,libelf1,strace,zlib1g
+packages=binutils,coreutils,busybox-static,elfutils,iproute2,libcap2,libelf1,strace,zlib1g,sudo
 
 debootstrap \
   --include="$packages" \

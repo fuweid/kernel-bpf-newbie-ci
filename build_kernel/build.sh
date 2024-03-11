@@ -29,8 +29,9 @@ travis_fold start build_kernel "Building kernel in ${KERNEL_REPO_ROOT}"
 cd "${KERNEL_REPO_ROOT}"
 cp "${REPO_BASE}/build_kernel/config-latest.x86_64" .config
 
-make clean
-make olddefconfig && make prepare
+# make clean
+make olddefconfig
+make prepare
 make -j $(nproc) all
 
 travis_fold end build_kernel

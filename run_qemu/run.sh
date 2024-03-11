@@ -46,9 +46,15 @@ fi
 "$qemu" -nodefaults --no-reboot -display none -serial mon:stdio \
   ${accel} -smp "$smp" -m 8G \
   -drive file="${IMAGE_PATH}",format=raw,index=1,media=disk,if=virtio,cache=none \
-  -kernel "${VMLINUZ_PATH}" -append "root=/dev/vda rw console=$console panic=-1 $APPEND"
+  -kernel "${VMLINUZ_PATH}" -append "root=/dev/vda rw console=$console panic=-1 log_buf_len=65536 loglevel=7 $APPEND"
 
-exitfile="$(guestfish --ro -a "${IMAGE_PATH}" -i cat /exitstatus 2>/dev/null)"
+# -drive file="${IMAGE_PATH}",format=raw,index=1,media=disk,if=virtio,cache=none \
+exitfile="$(guestfish --ro -a "${IMAGE_PATH}" -i cat /exitstatus 2>/dev/null || echo yes)"
+if [[ "${exitfile}" == "yes" ]]; then
+  exit 0
+fi
+exit 1
+
 exitstatus="$(echo -e "$exitfile" | awk --field-separator ':' \
   'BEGIN { s=0 } { if ($2) {s=1} } END { print s }')"
 
@@ -60,6 +66,8 @@ else
 fi
 
 travis_fold end shutdown
+
+exit $exitstatus
 
 # Final summary - Don't use a fold, keep it visible
 echo -e "\033[1;33mTest Results:\033[0m"
