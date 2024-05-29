@@ -45,7 +45,7 @@ fi
 
 "$qemu" -nodefaults --no-reboot -display none -serial mon:stdio \
   ${accel} -smp "$smp" -m 8G \
-  -drive file="${IMAGE_PATH}",format=raw,index=1,media=disk,if=virtio,cache=none \
+  -drive file="${IMAGE_PATH}",format=raw,index=1,media=disk,if=virtio,cache=none -s \
   -kernel "${VMLINUZ_PATH}" -append "root=/dev/vda rw console=$console panic=-1 $APPEND"
 
 exitfile="$(guestfish --ro -a "${IMAGE_PATH}" -i cat /exitstatus 2>/dev/null)"
