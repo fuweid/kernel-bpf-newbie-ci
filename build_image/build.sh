@@ -107,22 +107,6 @@ guestfish --remote \
 
 travis_fold end vmlinux_setup
 
-travis_fold start bpftool_checks "Running bpftool checks..."
-
-# "&& true" does not change the return code (it is not executed if the
-# Python script fails), but it prevents the trap on ERR set at the top
-# of this file to trigger on failure.
-"${KERNEL_REPO_ROOT}/tools/testing/selftests/bpf/test_bpftool_synctypes.py" && true
-bpftool_exitstatus=$?
-if [[ "$bpftool_exitstatus" -eq 0 ]]; then
-	print_notice bpftool_checks "bpftool checks passed successfully."
-else
-	print_error bpftool_checks "bpftool checks returned ${bpftool_exitstatus}."
-fi
-bpftool_exitstatus="bpftool:${bpftool_exitstatus}"
-
-travis_fold end bpftool_checks
-
 travis_fold start copy_files "Copying files..."
 
 # Copy the source files in.
@@ -130,51 +114,26 @@ guestfish --remote \
 	mkdir-p "/${PROJECT_NAME}" : \
 	chmod 0755 "/${PROJECT_NAME}"
 
-guestfish --remote \
-	mkdir-p "/${PROJECT_NAME}/selftests" : \
-	chmod 0755 "/${PROJECT_NAME}/selftests" : \
-	mkdir-p "/${PROJECT_NAME}/ci" : \
-	chmod 0755 "/${PROJECT_NAME}/ci"
-tar -C "${WORKSPACE}/selftests" -c bpf | tar_in "/${PROJECT_NAME}/selftests"
-tar -C "${REPO_BASE}" -c vmtest  | tar_in "/${PROJECT_NAME}/ci"
-
 init_script_tmp=$(mktemp -p ${working_dir})
 cat <<HERE >"${init_script_tmp}"
 #!/bin/sh
 
-set -eu
-
-echo 'Running setup commands'
-export KERNEL="${KERNEL_RELEASE}"
-export BPF_SELFTESTS_PATH="/${PROJECT_NAME}/selftests/bpf"
-
-set +e
-/${PROJECT_NAME}/ci/vmtest/run_selftests.sh; exitstatus=\$?
-echo -e '$(travis_fold start collect_status "Collect status")'
-set -e
-
-# If setup command did not write its exit status to /exitstatus, do it now
-if [[ ! -s /exitstatus ]]; then
-	echo setup_cmd:\$exitstatus > /exitstatus
-fi
-
-chmod 644 /exitstatus
-echo -e '$(travis_fold end collect_status)'
+bash
 HERE
 
 guestfish --remote \
 	upload "${init_script_tmp}" /etc/rcS.d/S50-run-tests : \
 	chmod 755 /etc/rcS.d/S50-run-tests
 
+# TODO: copy your binary into it.
+#guestfish --remote \
+#	upload /home/fuwei/workspace/rcudeadlock/rcudeadlock /rcudeadlock : \
+#	chmod 755 /rcudeadlock
+
 shutdown_script_tmp=$(mktemp -p ${working_dir})
 cat <<HERE >"${shutdown_script_tmp}"
 #!/bin/sh
 
-echo -e '$(travis_fold start shutdown Shutdown)'
-
-rm -f /shutdown-status
-echo "clean" > /shutdown-status
-chmod 644 /shutdown-status
 poweroff
 HERE
 
