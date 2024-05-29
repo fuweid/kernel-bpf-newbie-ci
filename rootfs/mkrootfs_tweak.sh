@@ -37,6 +37,7 @@ fi
 /bin/mount sysfs /sys -t sysfs
 /bin/mount bpffs /sys/fs/bpf -t bpf
 /bin/mount debugfs /sys/kernel/debug -t debugfs
+/bin/mount cgroup2 /sys/fs/cgroup -t cgroup2
 
 echo 'Listing currently mounted file systems'
 /bin/mount
