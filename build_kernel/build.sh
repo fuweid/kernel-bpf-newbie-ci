@@ -31,6 +31,6 @@ cp "${REPO_BASE}/build_kernel/config-latest.x86_64" .config
 
 make clean
 make olddefconfig && make prepare
-make -j $(nproc) all
+make -j $(nproc)
 
 travis_fold end build_kernel
